@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Simulador Vibaz</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+  body{
+    font-family: system-ui, Arial, sans-serif;
+    background:#dfe7ff;
+    margin:0;
+  }
+
+  .header{
+    background:#333e63;
+    text-align:center;
+    padding:15px;
+    color:#fff;
+  }
+
+  .header img{
+    height:60px;
+  }
+
+  .header div{
+    margin-top:8px;
+  }
+
+  .container{
+    max-width:700px;
+    margin:30px auto;
+    background:#333e63;
+    padding:20px;
+    border-radius:12px;
+    color:#fff;
+  }
+
+  label{
+    display:block;
+    margin-bottom:4px;
+  }
+
+  input,select{
+    width:100%;
+    padding:8px;
+    margin-bottom:10px;
+    border-radius:8px;
+    border:none;
+    box-sizing:border-box;
+  }
+
+  .btn-group{
+    display:flex;
+    gap:10px;
+  }
+
+  button{
+    flex:1;
+    padding:12px;
+    background:#6e95ff;
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:600;
+  }
+
+  .result{
+    margin-top:20px;
+    background:#fff;
+    color:#000;
+    padding:15px;
+    border-radius:10px;
+    line-height:1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img src="imagens/vibaz.jpeg" alt="Vibaz">
+  <div>Vibaz Robótica - Simulador de Parcelas</div>
+</div>
+
+<div class="container">
+  <label for="valor">Valor</label>
+  <input id="valor" type="number" step="0.01">
+
+  <label for="entrada">Entrada (%)</label>
+  <input id="entrada" type="number" step="0.01" value="0">
+
+  <label for="tipo">Forma</label>
+  <select id="tipo" onchange="ajustarCampos()">
+    <option value="avista">À vista</option>
+    <option value="pix">Pix</option>
+    <option value="debito">Débito</option>
+    <option value="credito">Crédito</option>
+    <option value="boleto">Boleto</option>
+  </select>
+
+  <label for="bandeira">Bandeira</label>
+  <select id="bandeira">
+    <option>Visa</option>
+    <option>Master</option>
+    <option>Elo</option>
+    <option>Amex</option>
+    <option>Diners</option>
+  </select>
+
+  <label for="parcelas">Parcelas</label>
+  <input id="parcelas" type="number" min="1" max="12" value="1">
+
+  <div class="btn-group">
+    <button onclick="calcular()">Calcular</button>
+    <button onclick="gerarImagem()">Emitir proposta</button>
+  </div>
+
+  <div class="result" id="resultado"></div>
+</div>
+
+<script>
+  function moeda(v){
+    return Number(v).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function getTaxa(){
+    const tipo = document.getElementById("tipo").value;
+    const bandeira = document.getElementById("bandeira").value;
+    const parcelas = parseInt(document.getElementById("parcelas").value || "1", 10);
+
+    if(tipo === "avista") return 0;
+    if(tipo === "pix") return 0.0049;
+
+    if(tipo === "debito"){
+      if(bandeira === "Elo") return 0.0192;
+      return 0.0127; // Visa e Master
+    }
+
+    if(tipo === "credito"){
+      if(parcelas === 1){
+        if(bandeira === "Elo") return 0.0276;
+        if(bandeira === "Amex" || bandeira === "Diners") return 0.0261;
+        return 0.0211; // Visa/Master
+      }
+
+      if(parcelas <= 6){
+        if(bandeira === "Elo") return 0.0326;
+        if(bandeira === "Amex") return 0.0311;
+        if(bandeira === "Diners") return 0.0301;
+        return 0.0251; // Visa/Master
+      }
+
+      if(bandeira === "Elo") return 0.0356;
+      if(bandeira === "Amex") return 0.0341;
+      if(bandeira === "Diners") return 0.0331;
+      return 0.0281; // Visa/Master
+    }
+
+    return 0;
+  }
+
+  function ajustarCampos(){
+    const tipo = document.getElementById("tipo").value;
+    const entrada = document.getElementById("entrada");
+    const bandeira = document.getElementById("bandeira");
+    const parcelas = document.getElementById("parcelas");
+
+    if(tipo === "avista"){
+      entrada.value = 0;
+      entrada.disabled = true;
+      bandeira.disabled = true;
+      parcelas.value = 1;
+      parcelas.disabled = true;
+      return;
+    }
+
+    if(tipo === "pix"){
+      entrada.value = 0;
+      entrada.disabled = true;
+      bandeira.disabled = true;
+      parcelas.value = 1;
+      parcelas.disabled = true;
+      return;
+    }
+
+    if(tipo === "debito"){
+      entrada.disabled = false;
+      bandeira.disabled = false;
+      parcelas.value = 1;
+      parcelas.disabled = true;
+      return;
+    }
+
+    if(tipo === "credito"){
+      entrada.disabled = false;
+      bandeira.disabled = false;
+      parcelas.disabled = false;
+      return;
+    }
+
+    if(tipo === "boleto"){
+      entrada.disabled = false;
+      bandeira.disabled = true;
+      parcelas.disabled = false;
+    }
+  }
+
+  function calcular(){
+    const valor = parseFloat(document.getElementById("valor").value || "0");
+    const entradaPerc = parseFloat(document.getElementById("entrada").value || "0");
+    const tipo = document.getElementById("tipo").value;
+    const parcelas = parseInt(document.getElementById("parcelas").value || "1", 10);
+
+    if(valor <= 0){
+      document.getElementById("resultado").innerHTML = "Informe um valor válido.";
+      return;
+    }
+
+    let entrada = valor * (entradaPerc / 100);
+
+    if(tipo === "avista"){
+      document.getElementById("resultado").innerHTML = `
+        Taxa: 0,00% <br>
+        Parcela: R$ ${moeda(valor)} <br>
+        Total: R$ ${moeda(valor)}
+      `;
+      return;
+    }
+
+    if(tipo === "boleto"){
+      const i = 0.05;
+      const saldo = valor - entrada;
+      const parcela = saldo * (i * Math.pow(1 + i, parcelas)) / (Math.pow(1 + i, parcelas) - 1);
+      const total = entrada + parcela * parcelas;
+
+      document.getElementById("resultado").innerHTML = `
+        ${entrada > 0 ? `Entrada: R$ ${moeda(entrada)} <br>` : ""}
+        Taxa: 5,00% a.m <br>
+        Parcela: R$ ${moeda(parcela)} <br>
+        Total: R$ ${moeda(total)}
+      `;
+      return;
+    }
+
+    const taxa = getTaxa();
+    const saldo = valor - entrada;
+    const valorFinal = saldo / (1 - taxa);
+    const parcela = valorFinal / parcelas;
+    const total = entrada + valorFinal;
+
+    document.getElementById("resultado").innerHTML = `
+      ${entrada > 0 ? `Entrada: R$ ${moeda(entrada)} <br>` : ""}
+      Taxa: ${(taxa * 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% <br>
+      Parcela: R$ ${moeda(parcela)} <br>
+      Total: R$ ${moeda(total)}
+    `;
+  }
+
+  function gerarImagem(){
+    const valor = parseFloat(document.getElementById("valor").value || "0");
+    const entradaPerc = parseFloat(document.getElementById("entrada").value || "0");
+    const tipo = document.getElementById("tipo").value;
+    const tipoTexto = document.getElementById("tipo").selectedOptions[0].text;
+    const bandeira = document.getElementById("bandeira").value;
+    const parcelas = parseInt(document.getElementById("parcelas").value || "1", 10);
+
+    if(valor <= 0){
+      alert("Informe um valor válido.");
+      return;
+    }
+
+    let entrada = valor * (entradaPerc / 100);
+    let parcela = 0;
+
+    if(tipo === "avista"){
+      parcela = valor;
+      entrada = 0;
+    } else if(tipo === "boleto"){
+      const i = 0.05;
+      const saldo = valor - entrada;
+      parcela = saldo * (i * Math.pow(1 + i, parcelas)) / (Math.pow(1 + i, parcelas) - 1);
+    } else {
+      const taxa = getTaxa();
+      const saldo = valor - entrada;
+      const valorFinal = saldo / (1 - taxa);
+      parcela = valorFinal / parcelas;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 700;
+    canvas.height = 400;
+
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#2b3a67";
+    ctx.fillRect(0, 0, 700, 400);
+
+    const img = new Image();
+    img.src = "imagens/vibaz.jpeg";
+
+    img.onload = function(){
+      ctx.drawImage(img, 0, 20, 700, 70);
+
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+
+      let y = 150;
+
+      ctx.font = "bold 26px Arial";
+      ctx.fillText(tipoTexto, 350, y);
+      y += 40;
+
+      ctx.font = "20px Arial";
+
+      if(tipo === "credito" || tipo === "debito"){
+        ctx.fillText("Bandeira: " + bandeira, 350, y);
+        y += 30;
+      }
+
+      ctx.fillText("Parcelas: " + parcelas + "x", 350, y);
+      y += 40;
+
+      if(entrada > 0){
+        ctx.fillText("Entrada: R$ " + moeda(entrada), 350, y);
+        y += 30;
+      }
+
+      ctx.fillText("Valor da parcela: R$ " + moeda(parcela), 350, y);
+
+      const link = document.createElement("a");
+      link.download = "proposta.jpg";
+      link.href = canvas.toDataURL("image/jpeg");
+      link.click();
+    };
+
+    img.onerror = function(){
+      alert("Não foi possível carregar a imagem 'imagens/vibaz.jpeg'.");
+    };
+  }
+
+  ajustarCampos();
+</script>
+
+</body>
+</html>
